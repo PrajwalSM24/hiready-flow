@@ -29,7 +29,13 @@ const Login = () => {
   };
 
   const handleGoogleLogin = () => {
-    toast.info("Google login coming soon!");
+    // Simulate Google OAuth flow
+    setIsLoading(true);
+    setTimeout(() => {
+      toast.success("Logged in with Google!");
+      navigate("/dashboard");
+      setIsLoading(false);
+    }, 1000);
   };
 
   return (

@@ -3,49 +3,52 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, MessageSquare, CheckCircle2, AlertTriangle, AlertCircle } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend } from "recharts";
+import { ArrowLeft, FileText, CheckCircle2, AlertTriangle, AlertCircle, TrendingUp } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
-const InterviewReport = () => {
+const ResumeReport = () => {
   // Mock data for the report
   const reportData = {
-    role: "Front-end Developer",
-    confidenceScore: 78,
-    contentScore: 82,
-    overallScore: 80,
+    fileName: "John_Doe_Resume.pdf",
+    targetRole: "Frontend Developer",
+    atsScore: 85,
+    keywordMatch: 78,
+    formatScore: 92,
+    overallScore: 85,
     strengths: [
-      "The candidate understands the structure of interview questions.",
-      "The candidate is attempting to provide answers to technical questions.",
-      "The candidate shows some familiarity with the concepts of front-end development.",
+      "Strong technical skills section with relevant keywords",
+      "Clear and quantifiable achievements in work experience",
+      "ATS-friendly format with proper heading structure",
+      "Relevant certifications and education credentials"
     ],
     improvements: [
-      "The responses are nonsensical or incomplete, demonstrating a lack of preparedness.",
-      "There is a total lack of clarity and detail in answers.",
-      "The candidate does not appropriately engage with the questions asked.",
+      "Add more industry-specific keywords for better ATS matching",
+      "Include metrics and numbers in project descriptions",
+      "Optimize skills section to match job requirements better",
+      "Consider adding a professional summary at the top"
     ],
-    rejectionReasons: [
-      "Inability to articulate thoughts clearly and meaningfully.",
-      "Lack of relevant technical knowledge and experience.",
-      "Failure to demonstrate critical thinking or problem-solving skills in responses.",
-    ],
+    criticalIssues: [
+      "Missing contact information in header",
+      "Inconsistent date formatting across sections",
+      "Some technical terms not recognized by ATS systems"
+    ]
   };
 
   // Chart data
-  const performanceData = [
-    { category: 'Technical Skills', score: 85 },
-    { category: 'Communication', score: 78 },
-    { category: 'Problem Solving', score: 80 },
-    { category: 'Confidence', score: 75 }
+  const scoreData = [
+    { name: 'ATS Score', score: reportData.atsScore },
+    { name: 'Keywords', score: reportData.keywordMatch },
+    { name: 'Format', score: reportData.formatScore }
   ];
 
-  const radarData = [
-    { skill: 'Technical', A: 85, fullMark: 100 },
-    { skill: 'Communication', A: 78, fullMark: 100 },
-    { skill: 'Leadership', A: 65, fullMark: 100 },
-    { skill: 'Problem Solving', A: 80, fullMark: 100 },
-    { skill: 'Adaptability', A: 70, fullMark: 100 },
-    { skill: 'Teamwork', A: 75, fullMark: 100 }
+  const skillsDistribution = [
+    { name: 'Technical', value: 45 },
+    { name: 'Soft Skills', value: 25 },
+    { name: 'Tools', value: 20 },
+    { name: 'Languages', value: 10 }
   ];
+
+  const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--success))', 'hsl(var(--warning))'];
 
   return (
     <DashboardLayout>
@@ -61,27 +64,27 @@ const InterviewReport = () => {
             </Link>
             <div className="h-8 w-px bg-border" />
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Interview Feedback Report</h1>
+              <h1 className="text-3xl font-bold text-foreground">Resume Analysis Report</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                For the role of <span className="text-primary font-medium">{reportData.role}</span>
+                For <span className="text-primary font-medium">{reportData.targetRole}</span> position
               </p>
             </div>
           </div>
-          <Link to="/interview">
+          <Link to="/resume-analysis">
             <Button className="bg-gradient-primary hover:opacity-90 transition-opacity">
-              <MessageSquare className="mr-2 w-4 h-4" />
-              Start a New Interview
+              <FileText className="mr-2 w-4 h-4" />
+              Upload New Resume
             </Button>
           </Link>
         </div>
 
-        {/* Score Cards */}
+        {/* Score Overview */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          {/* Overall Score */}
+          {/* ATS Score */}
           <Card className="border border-border shadow-md">
             <CardHeader>
-              <CardTitle className="text-lg">Overall Performance</CardTitle>
-              <CardDescription>Combined assessment score</CardDescription>
+              <CardTitle className="text-lg">ATS Compatibility</CardTitle>
+              <CardDescription>How well your resume passes ATS systems</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4">
@@ -90,100 +93,75 @@ const InterviewReport = () => {
                     <circle cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted" />
                     <circle
                       cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="8" fill="none"
-                      strokeDasharray={`${(reportData.overallScore / 100) * 220} 220`}
+                      strokeDasharray={`${(reportData.atsScore / 100) * 220} 220`}
                       className="text-success"
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-foreground">{reportData.overallScore}%</span>
+                    <span className="text-2xl font-bold text-foreground">{reportData.atsScore}%</span>
                   </div>
                 </div>
                 <div className="flex-1">
-                  <Progress value={reportData.overallScore} className="h-2" />
-                  <p className="text-sm text-muted-foreground mt-2">Good performance</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          {/* Confidence Score */}
-          <Card className="border border-border shadow-md">
-            <CardHeader>
-              <CardTitle className="text-lg">Confidence & Communication</CardTitle>
-              <CardDescription>Measures your articulation, clarity, and vocal confidence.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <div className="relative w-20 h-20">
-                  <svg className="w-20 h-20 transform -rotate-90">
-                    <circle
-                      cx="40"
-                      cy="40"
-                      r="35"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="none"
-                      className="text-muted"
-                    />
-                    <circle
-                      cx="40"
-                      cy="40"
-                      r="35"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="none"
-                      strokeDasharray={`${(reportData.confidenceScore / 100) * 220} 220`}
-                      className="text-primary"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-foreground">{reportData.confidenceScore}%</span>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <Progress value={reportData.confidenceScore} className="h-2" />
-                  <p className="text-sm text-muted-foreground mt-2">Good confidence level</p>
+                  <Progress value={reportData.atsScore} className="h-2" />
+                  <p className="text-sm text-muted-foreground mt-2">Excellent compatibility</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Content Score */}
+          {/* Keyword Match */}
           <Card className="border border-border shadow-md">
             <CardHeader>
-              <CardTitle className="text-lg">Content & Relevance</CardTitle>
-              <CardDescription>Assesses how well your answers align with the role's requirements.</CardDescription>
+              <CardTitle className="text-lg">Keyword Match</CardTitle>
+              <CardDescription>Relevance to target role requirements</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4">
                 <div className="relative w-20 h-20">
                   <svg className="w-20 h-20 transform -rotate-90">
+                    <circle cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted" />
                     <circle
-                      cx="40"
-                      cy="40"
-                      r="35"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="none"
-                      className="text-muted"
-                    />
-                    <circle
-                      cx="40"
-                      cy="40"
-                      r="35"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="none"
-                      strokeDasharray={`${(reportData.contentScore / 100) * 220} 220`}
-                      className="text-accent"
+                      cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="8" fill="none"
+                      strokeDasharray={`${(reportData.keywordMatch / 100) * 220} 220`}
+                      className="text-warning"
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-foreground">{reportData.contentScore}%</span>
+                    <span className="text-2xl font-bold text-foreground">{reportData.keywordMatch}%</span>
                   </div>
                 </div>
                 <div className="flex-1">
-                  <Progress value={reportData.contentScore} className="h-2" />
-                  <p className="text-sm text-muted-foreground mt-2">Strong content quality</p>
+                  <Progress value={reportData.keywordMatch} className="h-2" />
+                  <p className="text-sm text-muted-foreground mt-2">Good match</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Format Score */}
+          <Card className="border border-border shadow-md">
+            <CardHeader>
+              <CardTitle className="text-lg">Format Quality</CardTitle>
+              <CardDescription>Structure and readability assessment</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <div className="relative w-20 h-20">
+                  <svg className="w-20 h-20 transform -rotate-90">
+                    <circle cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted" />
+                    <circle
+                      cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="8" fill="none"
+                      strokeDasharray={`${(reportData.formatScore / 100) * 220} 220`}
+                      className="text-primary"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-foreground">{reportData.formatScore}%</span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <Progress value={reportData.formatScore} className="h-2" />
+                  <p className="text-sm text-muted-foreground mt-2">Excellent format</p>
                 </div>
               </div>
             </CardContent>
@@ -192,17 +170,17 @@ const InterviewReport = () => {
 
         {/* Data Visualizations */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
-          {/* Bar Chart - Performance Breakdown */}
+          {/* Bar Chart - Score Breakdown */}
           <Card className="border border-border shadow-md">
             <CardHeader>
-              <CardTitle className="text-lg">Performance Breakdown</CardTitle>
-              <CardDescription>Detailed scoring across key areas</CardDescription>
+              <CardTitle className="text-lg">Score Breakdown</CardTitle>
+              <CardDescription>Detailed analysis of resume components</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={performanceData}>
+                <BarChart data={scoreData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="category" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
                   <YAxis stroke="hsl(var(--muted-foreground))" />
                   <Tooltip 
                     contentStyle={{ 
@@ -217,20 +195,29 @@ const InterviewReport = () => {
             </CardContent>
           </Card>
 
-          {/* Radar Chart - Skills Assessment */}
+          {/* Pie Chart - Skills Distribution */}
           <Card className="border border-border shadow-md">
             <CardHeader>
-              <CardTitle className="text-lg">Skills Assessment</CardTitle>
-              <CardDescription>Comprehensive evaluation across competencies</CardDescription>
+              <CardTitle className="text-lg">Skills Distribution</CardTitle>
+              <CardDescription>Breakdown of skill categories in your resume</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={250}>
-                <RadarChart data={radarData}>
-                  <PolarGrid stroke="hsl(var(--border))" />
-                  <PolarAngleAxis dataKey="skill" stroke="hsl(var(--muted-foreground))" />
-                  <PolarRadiusAxis stroke="hsl(var(--muted-foreground))" />
-                  <Radar name="Your Score" dataKey="A" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.5} />
-                  <Legend />
+                <PieChart>
+                  <Pie
+                    data={skillsDistribution}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="hsl(var(--primary))"
+                    dataKey="value"
+                  >
+                    {skillsDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
                   <Tooltip 
                     contentStyle={{ 
                       backgroundColor: 'hsl(var(--card))', 
@@ -238,7 +225,7 @@ const InterviewReport = () => {
                       borderRadius: '8px'
                     }}
                   />
-                </RadarChart>
+                </PieChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -284,20 +271,20 @@ const InterviewReport = () => {
           </CardContent>
         </Card>
 
-        {/* Potential Rejection Reasons */}
-        <Card className="border-l-4 border-l-destructive border border-border">
+        {/* Critical Issues */}
+        <Card className="border-l-4 border-l-destructive border border-border mb-8">
           <CardHeader>
             <div className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-destructive" />
-              <CardTitle className="text-destructive">Potential Rejection Reasons</CardTitle>
+              <CardTitle className="text-destructive">Critical Issues to Fix</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
-              {reportData.rejectionReasons.map((reason, index) => (
+              {reportData.criticalIssues.map((issue, index) => (
                 <li key={index} className="flex items-start gap-3 p-3 rounded-lg bg-destructive/5">
                   <AlertCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-foreground">{reason}</span>
+                  <span className="text-sm text-foreground">{issue}</span>
                 </li>
               ))}
             </ul>
@@ -305,17 +292,17 @@ const InterviewReport = () => {
         </Card>
 
         {/* Next Steps */}
-        <div className="mt-8 p-6 bg-gradient-hero rounded-lg border border-border">
+        <div className="p-6 bg-gradient-hero rounded-lg border border-border">
           <h3 className="text-lg font-semibold text-foreground mb-4">Recommended Next Steps</h3>
           <div className="grid md:grid-cols-3 gap-4">
             <Link to="/resume-analysis" className="block">
               <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                 <CardHeader>
-                  <CardTitle className="text-sm">Optimize Your Resume</CardTitle>
+                  <CardTitle className="text-sm">Update & Re-analyze</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-muted-foreground">
-                    Improve your resume's ATS compatibility and get more interview calls
+                    Make improvements and upload your updated resume
                   </p>
                 </CardContent>
               </Card>
@@ -323,22 +310,25 @@ const InterviewReport = () => {
             <Link to="/interview" className="block">
               <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                 <CardHeader>
-                  <CardTitle className="text-sm">Practice More</CardTitle>
+                  <CardTitle className="text-sm">Practice Interview</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-muted-foreground">
-                    Take another mock interview to improve your skills
+                    Prepare for interviews with our AI interviewer
                   </p>
                 </CardContent>
               </Card>
             </Link>
             <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
               <CardHeader>
-                <CardTitle className="text-sm">Review Resources</CardTitle>
+                <CardTitle className="text-sm">
+                  <TrendingUp className="w-4 h-4 inline mr-1" />
+                  Success Tips
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground">
-                  Access our library of interview tips and best practices
+                  Learn best practices for resume optimization
                 </p>
               </CardContent>
             </Card>
@@ -349,4 +339,4 @@ const InterviewReport = () => {
   );
 };
 
-export default InterviewReport;
+export default ResumeReport;

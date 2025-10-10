@@ -1,12 +1,14 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { FileUp, MessageSquare, ArrowRight, FileText, Mic } from "lucide-react";
+import { FileUp, MessageSquare, ArrowRight, FileText, Mic, BarChart3 } from "lucide-react";
 
 const Dashboard = () => {
-  const progress: number = 0; // Can be updated based on user progress
+  const [progress, setProgress] = useState<number>(0); // Can be updated based on user progress
+  const [hasCompletedInterview, setHasCompletedInterview] = useState(false);
 
   return (
     <DashboardLayout>
@@ -57,7 +59,7 @@ const Dashboard = () => {
         </Card>
 
         {/* Action Cards */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
           {/* Resume Upload Card */}
           <Card className="border border-border shadow-md hover:shadow-lg transition-shadow">
             <CardHeader>
@@ -95,6 +97,34 @@ const Dashboard = () => {
                   Start Interview <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               </Link>
+            </CardContent>
+          </Card>
+
+          {/* View Report Card */}
+          <Card className="border border-border shadow-md hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <div className="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center mb-4">
+                <BarChart3 className="w-6 h-6 text-success" />
+              </div>
+              <CardTitle>View Reports</CardTitle>
+              <CardDescription>
+                Review your interview performance and insights
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/interview-report">
+                <Button 
+                  className="bg-gradient-accent hover:opacity-90 transition-opacity"
+                  disabled={!hasCompletedInterview}
+                >
+                  View Report <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+              </Link>
+              {!hasCompletedInterview && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Complete an interview to unlock reports
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

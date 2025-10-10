@@ -73,7 +73,7 @@ const ResumeAnalysis = () => {
     // Placeholder for API call to /api/resumes
     setTimeout(() => {
       toast.success("Resume analyzed successfully!");
-      navigate("/dashboard");
+      navigate("/resume-report");
       setIsAnalyzing(false);
     }, 2000);
   };
