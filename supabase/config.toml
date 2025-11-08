@@ -1,1 +1,19 @@
 project_id = "rxkntgrccfqhaoongyzo"
+
+[functions.resume-upload]
+verify_jwt = true
+
+[functions.analyze-resume]
+verify_jwt = true
+
+[functions.speech-to-text]
+verify_jwt = true
+
+[functions.text-to-speech]
+verify_jwt = true
+
+[functions.interview-chat]
+verify_jwt = true
+
+[functions.generate-report]
+verify_jwt = true
