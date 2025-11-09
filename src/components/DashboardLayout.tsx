@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { GraduationCap, LayoutDashboard, FileText, MessageSquare, LogOut, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -10,6 +11,7 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const location = useLocation();
+  const { user, signOut } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navItems = [
@@ -86,23 +88,24 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <div className="flex items-center gap-3 mb-3">
             <Avatar>
               <AvatarFallback className="bg-primary text-primary-foreground">
-                P
+                {user?.email?.charAt(0).toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <p className="text-sm font-medium text-sidebar-foreground">Prajwal SM</p>
-              <p className="text-xs text-muted-foreground">praju2429@gmail.com</p>
+              <p className="text-sm font-medium text-sidebar-foreground">
+                {user?.user_metadata?.full_name || 'User'}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
             </div>
           </div>
-          <Link to="/login">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign out
-            </Button>
-          </Link>
+          <Button
+            variant="ghost"
+            onClick={() => signOut()}
+            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign out
+          </Button>
         </div>
       </aside>
 

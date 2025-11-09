@@ -1,41 +1,45 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GraduationCap, Mail, Lock } from "lucide-react";
-import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { user, signIn, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    // Placeholder for API call to /api/auth/login
-    setTimeout(() => {
-      if (email && password) {
-        toast.success("Login successful!");
-        navigate("/dashboard");
-      } else {
-        toast.error("Please enter valid credentials");
-      }
+    try {
+      await signIn(email, password);
+    } catch (error) {
+      // Error is handled in useAuth
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
-  const handleGoogleLogin = () => {
-    // Simulate Google OAuth flow
+  const handleGoogleLogin = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      toast.success("Logged in with Google!");
-      navigate("/dashboard");
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      // Error is handled in useAuth
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (

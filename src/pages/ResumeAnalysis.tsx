@@ -8,9 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, FileText, Target, TrendingUp, CheckCircle2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useResume } from "@/hooks/useResume";
 
 const ResumeAnalysis = () => {
   const navigate = useNavigate();
+  const { uploadResume, analyzeResume } = useResume();
   const [file, setFile] = useState<File | null>(null);
   const [targetRole, setTargetRole] = useState("");
   const [experienceLevel, setExperienceLevel] = useState("");
@@ -70,12 +72,29 @@ const ResumeAnalysis = () => {
 
     setIsAnalyzing(true);
 
-    // Placeholder for API call to /api/resumes
-    setTimeout(() => {
+    try {
+      // Step 1: Upload resume
+      const uploadResult = await uploadResume.mutateAsync({
+        file,
+        targetRole,
+        experienceLevel,
+      });
+
+      // Step 2: Analyze resume
+      const analysisResult = await analyzeResume.mutateAsync({
+        resumeId: uploadResult.resumeId,
+        extractedText: uploadResult.extractedText,
+        targetRole,
+        experienceLevel,
+      });
+
       toast.success("Resume analyzed successfully!");
-      navigate("/resume-report");
+      navigate(`/resume-report/${uploadResult.resumeId}`);
+    } catch (error) {
+      console.error('Analysis error:', error);
+    } finally {
       setIsAnalyzing(false);
-    }, 2000);
+    }
   };
 
   return (

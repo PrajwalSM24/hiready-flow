@@ -1,33 +1,69 @@
-import { Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, MessageSquare, CheckCircle2, AlertTriangle, AlertCircle } from "lucide-react";
+import { ArrowLeft, MessageSquare, CheckCircle2, AlertTriangle, AlertCircle, Loader2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const InterviewReport = () => {
-  // Mock data for the report
+  const { interviewId } = useParams<{ interviewId: string }>();
+
+  const { data: interview, isLoading } = useQuery({
+    queryKey: ['interview', interviewId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('interviews')
+        .select('*, resumes(*)')
+        .eq('id', interviewId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!interviewId,
+  });
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!interview || !interview.analysis_result) {
+    return (
+      <DashboardLayout>
+        <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+          <Card className="border border-border shadow-md">
+            <CardContent className="pt-6">
+              <p className="text-center text-muted-foreground">No report found for this interview</p>
+              <div className="flex justify-center mt-4">
+                <Link to="/interview">
+                  <Button>Start an Interview</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const analysis = interview.analysis_result as any;
   const reportData = {
-    role: "Front-end Developer",
-    confidenceScore: 78,
-    contentScore: 82,
-    overallScore: 80,
-    strengths: [
-      "The candidate understands the structure of interview questions.",
-      "The candidate is attempting to provide answers to technical questions.",
-      "The candidate shows some familiarity with the concepts of front-end development.",
-    ],
-    improvements: [
-      "The responses are nonsensical or incomplete, demonstrating a lack of preparedness.",
-      "There is a total lack of clarity and detail in answers.",
-      "The candidate does not appropriately engage with the questions asked.",
-    ],
-    rejectionReasons: [
-      "Inability to articulate thoughts clearly and meaningfully.",
-      "Lack of relevant technical knowledge and experience.",
-      "Failure to demonstrate critical thinking or problem-solving skills in responses.",
-    ],
+    role: interview.resumes?.target_role || "Position",
+    confidenceScore: analysis.communicationScore || 0,
+    contentScore: analysis.technicalScore || 0,
+    overallScore: analysis.overallScore || 0,
+    strengths: analysis.strengths || [],
+    improvements: analysis.improvements || [],
+    rejectionReasons: analysis.feedback || [],
   };
 
   // Chart data

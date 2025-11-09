@@ -1,21 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { FileUp, MessageSquare, ArrowRight, FileText, Mic, BarChart3 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useResume } from "@/hooks/useResume";
+import { useInterview } from "@/hooks/useInterview";
 
 const Dashboard = () => {
-  const [progress, setProgress] = useState<number>(0); // Can be updated based on user progress
-  const [hasCompletedInterview, setHasCompletedInterview] = useState(false);
+  const { user } = useAuth();
+  const { resumes } = useResume();
+  const { interviews } = useInterview();
+  const [progress, setProgress] = useState<number>(0);
+
+  const latestResume = resumes?.[0];
+  const latestInterview = interviews?.[0];
+  const hasCompletedInterview = latestInterview?.status === 'completed';
+
+  useEffect(() => {
+    let calculatedProgress = 0;
+    if (resumes && resumes.length > 0) calculatedProgress += 25;
+    if (latestResume?.analysis_result) calculatedProgress += 25;
+    if (interviews && interviews.length > 0) calculatedProgress += 25;
+    if (hasCompletedInterview) calculatedProgress += 25;
+    setProgress(calculatedProgress);
+  }, [resumes, latestResume, interviews, hasCompletedInterview]);
 
   return (
     <DashboardLayout>
       <div className="p-6 lg:p-8 max-w-7xl mx-auto">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back, Prajwal</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Welcome back, {user?.user_metadata?.full_name || 'there'}
+          </h1>
           <p className="text-muted-foreground">Ready to ace your next interview?</p>
         </div>
 
@@ -112,7 +132,7 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link to="/interview-report">
+              <Link to={latestInterview && hasCompletedInterview ? `/interview-report/${latestInterview.id}` : "/interview-report"}>
                 <Button 
                   className="bg-gradient-accent hover:opacity-90 transition-opacity"
                   disabled={!hasCompletedInterview}
@@ -140,9 +160,11 @@ const Dashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-foreground">{progress >= 25 ? "90%" : "0%"}</div>
+              <div className="text-3xl font-bold text-foreground">
+                {(latestResume?.analysis_result as any)?.atsScore || 0}%
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {progress >= 25 ? "Excellent compatibility" : "Upload resume to see score"}
+                {latestResume?.analysis_result ? "Excellent compatibility" : "Upload resume to see score"}
               </p>
             </CardContent>
           </Card>
@@ -156,9 +178,11 @@ const Dashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-foreground">{progress >= 75 ? "85%" : "0%"}</div>
+              <div className="text-3xl font-bold text-foreground">
+                {(latestInterview?.analysis_result as any)?.overallScore || 0}%
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {progress >= 75 ? "Great performance!" : "Complete interview to see score"}
+                {hasCompletedInterview ? "Great performance!" : "Complete interview to see score"}
               </p>
             </CardContent>
           </Card>

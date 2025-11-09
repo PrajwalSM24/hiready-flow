@@ -1,18 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GraduationCap, Mail, Lock, User } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const Signup = () => {
   const navigate = useNavigate();
+  const { user, signUp, signInWithGoogle } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,17 +36,24 @@ const Signup = () => {
     }
 
     setIsLoading(true);
-
-    // Placeholder for API call to /api/auth/signup
-    setTimeout(() => {
-      toast.success("Account created successfully!");
-      navigate("/dashboard");
+    try {
+      await signUp(email, password, name);
+    } catch (error) {
+      // Error is handled in useAuth
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
-  const handleGoogleSignup = () => {
-    toast.info("Google sign up coming soon!");
+  const handleGoogleSignup = async () => {
+    setIsLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      // Error is handled in useAuth
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

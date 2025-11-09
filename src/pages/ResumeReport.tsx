@@ -1,52 +1,91 @@
-import { Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, FileText, CheckCircle2, AlertTriangle, AlertCircle, TrendingUp } from "lucide-react";
+import { ArrowLeft, FileText, CheckCircle2, AlertTriangle, AlertCircle, TrendingUp, Loader2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const ResumeReport = () => {
-  // Mock data for the report
+  const { resumeId } = useParams<{ resumeId: string }>();
+
+  const { data: resume, isLoading } = useQuery({
+    queryKey: ['resume', resumeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('resumes')
+        .select('*')
+        .eq('id', resumeId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!resumeId,
+  });
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!resume || !resume.analysis_result) {
+    return (
+      <DashboardLayout>
+        <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+          <Card className="border border-border shadow-md">
+            <CardContent className="pt-6">
+              <p className="text-center text-muted-foreground">No analysis found for this resume</p>
+              <div className="flex justify-center mt-4">
+                <Link to="/resume-analysis">
+                  <Button>Analyze a Resume</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const analysis = resume.analysis_result as any;
   const reportData = {
-    fileName: "John_Doe_Resume.pdf",
-    targetRole: "Frontend Developer",
-    atsScore: 85,
-    keywordMatch: 78,
-    formatScore: 92,
-    overallScore: 85,
-    strengths: [
-      "Strong technical skills section with relevant keywords",
-      "Clear and quantifiable achievements in work experience",
-      "ATS-friendly format with proper heading structure",
-      "Relevant certifications and education credentials"
-    ],
-    improvements: [
-      "Add more industry-specific keywords for better ATS matching",
-      "Include metrics and numbers in project descriptions",
-      "Optimize skills section to match job requirements better",
-      "Consider adding a professional summary at the top"
-    ],
-    criticalIssues: [
-      "Missing contact information in header",
-      "Inconsistent date formatting across sections",
-      "Some technical terms not recognized by ATS systems"
-    ]
+    fileName: resume.file_name,
+    targetRole: resume.target_role,
+    atsScore: analysis.atsScore || 0,
+    keywordMatch: analysis.keywordsScore || 0,
+    formatScore: analysis.formatScore || 0,
+    overallScore: analysis.overallScore || 0,
+    strengths: analysis.strengths || [],
+    improvements: analysis.improvements || [],
+    criticalIssues: analysis.recommendations || [],
   };
 
-  // Chart data
+  // Chart data with actual resume data
   const scoreData = [
     { name: 'ATS Score', score: reportData.atsScore },
     { name: 'Keywords', score: reportData.keywordMatch },
     { name: 'Format', score: reportData.formatScore }
   ];
 
-  const skillsDistribution = [
-    { name: 'Technical', value: 45 },
-    { name: 'Soft Skills', value: 25 },
-    { name: 'Tools', value: 20 },
-    { name: 'Languages', value: 10 }
-  ];
+  const skillsDistribution = analysis.skillsDistribution || {
+    technical: 45,
+    soft: 25,
+    tools: 20,
+    languages: 10
+  };
+
+  const skillsData = Object.entries(skillsDistribution).map(([name, value]) => ({
+    name: name.charAt(0).toUpperCase() + name.slice(1),
+    value
+  }));
 
   const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--success))', 'hsl(var(--warning))'];
 
@@ -212,11 +251,11 @@ const ResumeReport = () => {
                     label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     outerRadius={80}
                     fill="hsl(var(--primary))"
-                    dataKey="value"
-                  >
-                    {skillsDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
+                   dataKey="value"
+                 >
+                   {skillsData.map((entry, index) => (
+                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                   ))}
                   </Pie>
                   <Tooltip 
                     contentStyle={{ 
