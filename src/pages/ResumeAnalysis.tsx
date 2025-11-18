@@ -83,9 +83,7 @@ const ResumeAnalysis = () => {
       // Step 2: Analyze resume
       const analysisResult = await analyzeResume.mutateAsync({
         resumeId: uploadResult.resumeId,
-        extractedText: uploadResult.extractedText,
-        targetRole,
-        experienceLevel,
+        fileName: file.name,
       });
 
       toast.success("Resume analyzed successfully!");
