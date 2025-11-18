@@ -79,6 +79,42 @@ export type Database = {
         }
         Relationships: []
       }
+      resume_logs: {
+        Row: {
+          communication_score: number
+          created_at: string | null
+          experience_score: number
+          file_name: string
+          id: string
+          recommendations: Json
+          skills_score: number
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          communication_score: number
+          created_at?: string | null
+          experience_score: number
+          file_name: string
+          id?: string
+          recommendations: Json
+          skills_score: number
+          summary: string
+          user_id: string
+        }
+        Update: {
+          communication_score?: number
+          created_at?: string | null
+          experience_score?: number
+          file_name?: string
+          id?: string
+          recommendations?: Json
+          skills_score?: number
+          summary?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       resumes: {
         Row: {
           analysis_result: Json | null
