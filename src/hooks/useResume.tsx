@@ -35,14 +35,12 @@ export const useResume = () => {
   });
 
   const analyzeResume = useMutation({
-    mutationFn: async ({ resumeId, extractedText, targetRole, experienceLevel }: {
+    mutationFn: async ({ resumeId, fileName }: {
       resumeId: string;
-      extractedText: string;
-      targetRole: string;
-      experienceLevel: string;
+      fileName: string;
     }) => {
       const { data, error } = await supabase.functions.invoke('analyze-resume', {
-        body: { resumeId, extractedText, targetRole, experienceLevel },
+        body: { resumeId, fileName },
       });
 
       if (error) throw error;
