@@ -117,8 +117,8 @@ serve(async (req) => {
 
   try {
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? '',
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       {
         global: {
           headers: { Authorization: req.headers.get('Authorization')! },
@@ -135,6 +135,13 @@ serve(async (req) => {
     }
 
     const { resumeId, fileName } = await req.json();
+
+    if (!fileName) {
+      return new Response(JSON.stringify({ error: 'File name is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log('Analyzing resume:', resumeId, 'File:', fileName);
 
@@ -156,6 +163,24 @@ serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Insert log into resume_logs table
+    const { error: logError } = await supabase
+      .from('resume_logs')
+      .insert({
+        user_id: user.id,
+        file_name: fileName,
+        skills_score: analysisResult.skills_score,
+        experience_score: analysisResult.experience_score,
+        communication_score: analysisResult.communication_score,
+        summary: analysisResult.summary,
+        recommendations: analysisResult.recommendations,
+      });
+
+    if (logError) {
+      console.error('Log insertion error:', logError);
+      // Don't fail the request if logging fails, just log the error
     }
 
     return new Response(JSON.stringify({ 
