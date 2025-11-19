@@ -59,10 +59,10 @@ const ResumeReport = () => {
   const reportData = {
     fileName: resume.file_name,
     targetRole: resume.target_role,
-    atsScore: analysis.atsScore || 0,
-    keywordMatch: analysis.keywordsScore || 0,
-    formatScore: analysis.formatScore || 0,
-    overallScore: analysis.overallScore || 0,
+    skillsScore: analysis.skills_score || 0,
+    experienceScore: analysis.experience_score || 0,
+    communicationScore: analysis.communication_score || 0,
+    overallScore: analysis.overall_score || 0,
     strengths: analysis.strengths || [],
     improvements: analysis.improvements || [],
     criticalIssues: analysis.recommendations || [],
@@ -70,9 +70,9 @@ const ResumeReport = () => {
 
   // Chart data with actual resume data
   const scoreData = [
-    { name: 'ATS Score', score: reportData.atsScore },
-    { name: 'Keywords', score: reportData.keywordMatch },
-    { name: 'Format', score: reportData.formatScore }
+    { name: 'Skills', score: reportData.skillsScore },
+    { name: 'Experience', score: reportData.experienceScore },
+    { name: 'Communication', score: reportData.communicationScore }
   ];
 
   const skillsDistribution = analysis.skillsDistribution || {
@@ -132,16 +132,16 @@ const ResumeReport = () => {
                     <circle cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted" />
                     <circle
                       cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="8" fill="none"
-                      strokeDasharray={`${(reportData.atsScore / 100) * 220} 220`}
+                      strokeDasharray={`${(reportData.skillsScore / 100) * 220} 220`}
                       className="text-success"
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-foreground">{reportData.atsScore}%</span>
+                    <span className="text-2xl font-bold text-foreground">{reportData.skillsScore}%</span>
                   </div>
                 </div>
                 <div className="flex-1">
-                  <Progress value={reportData.atsScore} className="h-2" />
+                  <Progress value={reportData.skillsScore} className="h-2" />
                   <p className="text-sm text-muted-foreground mt-2">Excellent compatibility</p>
                 </div>
               </div>
@@ -161,16 +161,16 @@ const ResumeReport = () => {
                     <circle cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted" />
                     <circle
                       cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="8" fill="none"
-                      strokeDasharray={`${(reportData.keywordMatch / 100) * 220} 220`}
+                      strokeDasharray={`${(reportData.experienceScore / 100) * 220} 220`}
                       className="text-warning"
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-foreground">{reportData.keywordMatch}%</span>
+                    <span className="text-2xl font-bold text-foreground">{reportData.experienceScore}%</span>
                   </div>
                 </div>
                 <div className="flex-1">
-                  <Progress value={reportData.keywordMatch} className="h-2" />
+                  <Progress value={reportData.experienceScore} className="h-2" />
                   <p className="text-sm text-muted-foreground mt-2">Good match</p>
                 </div>
               </div>
@@ -190,16 +190,16 @@ const ResumeReport = () => {
                     <circle cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted" />
                     <circle
                       cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="8" fill="none"
-                      strokeDasharray={`${(reportData.formatScore / 100) * 220} 220`}
+                      strokeDasharray={`${(reportData.communicationScore / 100) * 220} 220`}
                       className="text-primary"
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-foreground">{reportData.formatScore}%</span>
+                    <span className="text-2xl font-bold text-foreground">{reportData.communicationScore}%</span>
                   </div>
                 </div>
                 <div className="flex-1">
-                  <Progress value={reportData.formatScore} className="h-2" />
+                  <Progress value={reportData.communicationScore} className="h-2" />
                   <p className="text-sm text-muted-foreground mt-2">Excellent format</p>
                 </div>
               </div>

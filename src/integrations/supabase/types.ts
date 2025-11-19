@@ -85,7 +85,9 @@ export type Database = {
           created_at: string | null
           experience_score: number
           file_name: string
+          file_size: number | null
           id: string
+          overall_score: number | null
           recommendations: Json
           skills_score: number
           summary: string
@@ -96,7 +98,9 @@ export type Database = {
           created_at?: string | null
           experience_score: number
           file_name: string
+          file_size?: number | null
           id?: string
+          overall_score?: number | null
           recommendations: Json
           skills_score: number
           summary: string
@@ -107,7 +111,9 @@ export type Database = {
           created_at?: string | null
           experience_score?: number
           file_name?: string
+          file_size?: number | null
           id?: string
+          overall_score?: number | null
           recommendations?: Json
           skills_score?: number
           summary?: string

@@ -35,12 +35,13 @@ export const useResume = () => {
   });
 
   const analyzeResume = useMutation({
-    mutationFn: async ({ resumeId, fileName }: {
+    mutationFn: async ({ resumeId, fileName, fileSize }: {
       resumeId: string;
       fileName: string;
+      fileSize?: number;
     }) => {
       const { data, error } = await supabase.functions.invoke('analyze-resume', {
-        body: { resumeId, fileName },
+        body: { resumeId, fileName, fileSize },
       });
 
       if (error) throw error;
