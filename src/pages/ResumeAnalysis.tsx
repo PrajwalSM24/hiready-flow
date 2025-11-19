@@ -84,6 +84,7 @@ const ResumeAnalysis = () => {
       const analysisResult = await analyzeResume.mutateAsync({
         resumeId: uploadResult.resumeId,
         fileName: file.name,
+        fileSize: file.size,
       });
 
       toast.success("Resume analyzed successfully!");

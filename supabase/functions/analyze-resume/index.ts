@@ -11,94 +11,47 @@ interface AnalysisResult {
   skills_score: number;
   experience_score: number;
   communication_score: number;
+  overall_score: number;
   summary: string;
   recommendations: string[];
 }
 
 function generateAnalysisByFilename(fileName: string): AnalysisResult {
-  const fixedReports: Record<string, AnalysisResult> = {
-    '1.pdf': {
-      name: 'John Smith',
-      skills_score: 92,
-      experience_score: 88,
-      communication_score: 85,
-      summary: 'Experienced software engineer with strong full-stack development skills. Demonstrates excellent problem-solving abilities and leadership qualities. Well-suited for senior technical roles.',
-      recommendations: [
-        'Add more quantifiable achievements to demonstrate impact',
-        'Include specific technologies and frameworks in project descriptions',
-        'Consider adding links to portfolio or GitHub projects',
-        'Expand on leadership experience and team collaboration'
-      ]
-    },
-    '2.pdf': {
-      name: 'Sarah Johnson',
-      skills_score: 78,
-      experience_score: 82,
-      communication_score: 90,
-      summary: 'Marketing professional with strong analytical and creative skills. Proven track record in digital marketing campaigns and brand management. Excellent communicator with cross-functional team experience.',
-      recommendations: [
-        'Highlight specific ROI metrics from marketing campaigns',
-        'Add certifications in digital marketing tools',
-        'Include more details about budget management experience',
-        'Emphasize data-driven decision making examples'
-      ]
-    },
-    '3.pdf': {
-      name: 'Michael Chen',
-      skills_score: 95,
-      experience_score: 91,
-      communication_score: 87,
-      summary: 'Senior data scientist with expertise in machine learning and AI. Strong background in statistical analysis and big data technologies. Demonstrated success in delivering business insights through data.',
-      recommendations: [
-        'Include more details about model deployment and production systems',
-        'Add publications or research contributions if available',
-        'Highlight specific business problems solved with ML',
-        'Mention cloud platform certifications and experience'
-      ]
-    },
-    '4.pdf': {
-      name: 'Emily Rodriguez',
-      skills_score: 73,
-      experience_score: 76,
-      communication_score: 94,
-      summary: 'Customer success manager with excellent interpersonal skills. Strong focus on client relationship building and retention. Proven ability to handle complex customer situations with professionalism.',
-      recommendations: [
-        'Quantify customer satisfaction improvements',
-        'Add specific examples of successful client onboarding',
-        'Include CRM software proficiency details',
-        'Highlight cross-selling and upselling achievements'
-      ]
-    },
-    '5.pdf': {
-      name: 'David Kim',
-      skills_score: 86,
-      experience_score: 84,
-      communication_score: 81,
-      summary: 'Product manager with strong technical background and business acumen. Experience managing product lifecycle from conception to launch. Good balance of strategic thinking and execution skills.',
-      recommendations: [
-        'Add more details about product metrics and KPIs',
-        'Include specific examples of stakeholder management',
-        'Highlight experience with agile methodologies',
-        'Mention any product management certifications'
-      ]
-    }
-  };
-
-  // Check if filename matches fixed reports
-  if (fixedReports[fileName]) {
-    return fixedReports[fileName];
-  }
-
-  // Generate random scores for other files
+  // Helper function to generate random score in range
   const randomScore = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+  
+  // Determine score range based on filename
+  let minScore: number;
+  let maxScore: number;
+  
+  if (fileName === '1.pdf' || fileName === '2.pdf') {
+    minScore = 85;
+    maxScore = 100;
+  } else if (fileName === '3.pdf' || fileName === '4.pdf') {
+    minScore = 75;
+    maxScore = 85;
+  } else if (fileName === '5.pdf') {
+    minScore = 60;
+    maxScore = 75;
+  } else {
+    minScore = 60;
+    maxScore = 100;
+  }
+  
+  // Generate random scores
+  const skills_score = randomScore(minScore, maxScore);
+  const experience_score = randomScore(minScore, maxScore);
+  const communication_score = randomScore(minScore, maxScore);
+  const overall_score = Math.floor((skills_score + experience_score + communication_score) / 3);
   
   const extractedName = fileName.replace(/\.(pdf|docx?|txt)$/i, '').replace(/[-_]/g, ' ');
   
   return {
     name: extractedName || 'Candidate',
-    skills_score: randomScore(65, 100),
-    experience_score: randomScore(65, 100),
-    communication_score: randomScore(65, 100),
+    skills_score,
+    experience_score,
+    communication_score,
+    overall_score,
     summary: `Professional candidate with diverse experience. The resume demonstrates competency across multiple areas and shows potential for growth. Overall presentation is solid with room for optimization.`,
     recommendations: [
       'Add more specific metrics and quantifiable achievements',
@@ -134,7 +87,7 @@ serve(async (req) => {
       });
     }
 
-    const { resumeId, fileName } = await req.json();
+    const { resumeId, fileName, fileSize } = await req.json();
 
     if (!fileName) {
       return new Response(JSON.stringify({ error: 'File name is required' }), {
@@ -143,7 +96,7 @@ serve(async (req) => {
       });
     }
 
-    console.log('Analyzing resume:', resumeId, 'File:', fileName);
+    console.log('Analyzing resume:', resumeId, 'File:', fileName, 'Size:', fileSize);
 
     // Generate analysis based on filename
     const analysisResult = generateAnalysisByFilename(fileName);
@@ -171,9 +124,11 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         file_name: fileName,
+        file_size: fileSize || 0,
         skills_score: analysisResult.skills_score,
         experience_score: analysisResult.experience_score,
         communication_score: analysisResult.communication_score,
+        overall_score: analysisResult.overall_score,
         summary: analysisResult.summary,
         recommendations: analysisResult.recommendations,
       });
@@ -185,6 +140,15 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true,
+      file_name: fileName,
+      file_size: fileSize || 0,
+      user_id: user.id,
+      scores: {
+        skills_score: analysisResult.skills_score,
+        experience_score: analysisResult.experience_score,
+        communication_score: analysisResult.communication_score,
+        overall_score: analysisResult.overall_score
+      },
       analysis: analysisResult 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
