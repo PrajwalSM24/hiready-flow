@@ -55,17 +55,81 @@ const ResumeReport = () => {
     );
   }
 
+  // Utility function to select random items from array
+  const getRandomItems = (array: string[], count: number): string[] => {
+    const shuffled = [...array].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, count);
+  };
+
   const analysis = resume.analysis_result as any;
+  const overallScore = analysis.overall_score || 0;
+
+  // Strength pool
+  const strengthPool = [
+    "Strong problem-solving ability",
+    "Clear communication and articulation",
+    "Solid foundational technical skills",
+    "Shows initiative and self-learning mindset",
+    "Good project ownership and accountability",
+    "Strong collaboration and teamwork",
+    "Adaptable to new tools and workflows",
+    "Good attention to detail",
+    "Demonstrates leadership qualities",
+    "Good analytical thinking",
+    "Shows ability to work under deadlines",
+    "Strong coding fundamentals",
+    "Good understanding of system architecture",
+    "Excellent time management skills",
+    "Strong debugging and troubleshooting abilities"
+  ];
+
+  // Improvement pool
+  const improvementPool = [
+    "Improve clarity and conciseness in explanations",
+    "Add more measurable achievements",
+    "Strengthen resume formatting consistency",
+    "Improve technical depth in project descriptions",
+    "Provide clearer impact statements",
+    "Add missing certifications",
+    "Improve version control experience documentation",
+    "Add more real-world projects",
+    "Strengthen domain knowledge",
+    "Improve narrative flow in resume",
+    "Add summary section with headline skills",
+    "Improve grammar and sentence structure",
+    "Add more metrics and quantifiable details",
+    "Enhance technical keywords for ATS",
+    "Include more specific technologies and tools"
+  ];
+
+  // Critical issues pool
+  const criticalIssuesPool = [
+    "Add measurable metrics to demonstrate impact",
+    "Include relevant certifications or training",
+    "Expand accomplishments in recent roles",
+    "Add a professional summary section",
+    "Ensure consistent formatting across resume"
+  ];
+
+  // Select items based on score
+  const selectedStrengths = overallScore > 85 
+    ? getRandomItems(strengthPool.slice(0, 10), 4) // Pick from stronger items
+    : getRandomItems(strengthPool, 4);
+
+  const selectedImprovements = overallScore < 70
+    ? getRandomItems(improvementPool.slice(0, 10), 4) // Pick from more critical items
+    : getRandomItems(improvementPool, 4);
+
   const reportData = {
     fileName: resume.file_name,
     targetRole: resume.target_role,
     skillsScore: analysis.skills_score || 0,
     experienceScore: analysis.experience_score || 0,
     communicationScore: analysis.communication_score || 0,
-    overallScore: analysis.overall_score || 0,
-    strengths: analysis.strengths || [],
-    improvements: analysis.improvements || [],
-    criticalIssues: analysis.recommendations || [],
+    overallScore: overallScore,
+    strengths: selectedStrengths,
+    improvements: selectedImprovements,
+    criticalIssues: criticalIssuesPool,
   };
 
   // Chart data with actual resume data
@@ -244,18 +308,18 @@ const ResumeReport = () => {
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie
-                    data={skillsDistribution}
+                    data={skillsData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
                     label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     outerRadius={80}
                     fill="hsl(var(--primary))"
-                   dataKey="value"
-                 >
-                   {skillsData.map((entry, index) => (
-                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                   ))}
+                    dataKey="value"
+                  >
+                    {skillsData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
                   </Pie>
                   <Tooltip 
                     contentStyle={{ 
