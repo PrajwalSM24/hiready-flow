@@ -18,38 +18,35 @@ serve(async (req) => {
       throw new Error('No audio data provided');
     }
 
-    console.log('Transcribing audio...');
+    console.log('Transcribing audio with Deepgram...');
 
     // Convert base64 to binary
     const binaryAudio = Uint8Array.from(atob(audio), c => c.charCodeAt(0));
 
-    // Prepare form data
-    const formData = new FormData();
-    const blob = new Blob([binaryAudio], { type: 'audio/webm' });
-    formData.append('file', blob, 'audio.webm');
-    formData.append('model', 'whisper-1');
-
-    // Send to OpenAI Whisper
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    // Send to Deepgram
+    const DEEPGRAM_API_KEY = Deno.env.get('DEEPGRAM_API_KEY');
+    const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Token ${DEEPGRAM_API_KEY}`,
+        'Content-Type': 'audio/webm',
       },
-      body: formData,
+      body: binaryAudio,
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      throw new Error(`OpenAI API error: ${errorText}`);
+      console.error('Deepgram API error:', response.status, errorText);
+      throw new Error(`Deepgram API error: ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('Transcription completed');
+    const transcript = result.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+
+    console.log('Transcription completed:', transcript.slice(0, 50));
 
     return new Response(
-      JSON.stringify({ text: result.text }),
+      JSON.stringify({ text: transcript }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

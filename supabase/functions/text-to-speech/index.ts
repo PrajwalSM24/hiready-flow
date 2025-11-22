@@ -12,34 +12,45 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voice = 'alloy' } = await req.json();
+    const { text, voice } = await req.json();
 
     if (!text) {
       throw new Error('No text provided');
     }
 
-    console.log('Generating speech for text length:', text.length);
+    console.log('Generating speech with ElevenLabs for text length:', text.length);
 
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
+    if (!ELEVENLABS_API_KEY) {
+      throw new Error('ElevenLabs API key not configured');
+    }
+    
+    // ElevenLabs voice IDs
+    // Adam: pNInz6obpgDQGcFmaJgB
+    // Default/Alloy equivalent: onwK4e9ZLuTAKqWW03F9 (Daniel)
+    const voiceId = voice === 'adam' ? 'pNInz6obpgDQGcFmaJgB' : 'pNInz6obpgDQGcFmaJgB'; // Use Adam by default
 
-    // Use OpenAI TTS
-    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+    // Use ElevenLabs TTS
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Accept': 'audio/mpeg',
         'Content-Type': 'application/json',
+        'xi-api-key': ELEVENLABS_API_KEY,
       },
       body: JSON.stringify({
-        model: 'tts-1',
-        input: text,
-        voice: voice,
-        response_format: 'mp3',
+        text: text,
+        model_id: 'eleven_monolingual_v1',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.5,
+        }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI TTS error:', response.status, errorText);
+      console.error('ElevenLabs TTS error:', response.status, errorText);
       throw new Error('Failed to generate speech');
     }
 
@@ -49,7 +60,7 @@ serve(async (req) => {
       String.fromCharCode(...new Uint8Array(arrayBuffer))
     );
 
-    console.log('Speech generated successfully');
+    console.log('Speech generated successfully with ElevenLabs');
 
     return new Response(
       JSON.stringify({ audioContent: base64Audio }),
