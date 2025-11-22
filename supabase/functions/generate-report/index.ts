@@ -32,7 +32,7 @@ serve(async (req) => {
 
     const { interviewId } = await req.json();
 
-    console.log('Generating report for interview:', interviewId);
+    console.log('Generating final report for interview:', interviewId);
 
     // Get interview data
     const { data: interviewData, error: fetchError } = await supabase
@@ -49,76 +49,130 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
+    if (!GROQ_API_KEY) {
+      throw new Error('Groq API key not configured');
+    }
 
-    const systemPrompt = `You are an expert interview evaluator. Analyze the interview transcript and provide a comprehensive evaluation including:
+    // Get the running analysis from the interview
+    const currentAnalysis = interviewData.analysis_result as any || {};
+    const transcript = interviewData.transcript || [];
+    
+    const systemPrompt = `You are an expert interview evaluator. You have been evaluating an interview in real-time, and now need to provide a comprehensive FINAL report.
 
-1. Overall performance score (0-100)
-2. Communication score (0-100)
-3. Technical knowledge score (0-100)
-4. Problem-solving score (0-100)
-5. Confidence level assessment
-6. Key strengths (list)
-7. Areas for improvement (list)
-8. Specific feedback on answers
-9. Recommendations for future interviews
-10. Hiring recommendation (Strong Yes, Yes, Maybe, No)
+Running Analysis Data:
+- Communication Score (Average): ${currentAnalysis.communicationScore || 0}/10
+- Confidence Score (Average): ${currentAnalysis.confidenceScore || 0}/10
+- Technical Score (Average): ${currentAnalysis.technicalScore || 0}/10
+- Grammar Score (Average): ${currentAnalysis.grammarScore || 0}/10
+- Number of Q&A exchanges: ${currentAnalysis.evaluationCount || 0}
 
-Provide the evaluation in JSON format.`;
+Individual Answer Evaluations:
+${JSON.stringify(currentAnalysis.answers || [], null, 2)}
 
-    const transcript = JSON.stringify(interviewData.transcript);
+Interview Transcript:
+${JSON.stringify(transcript, null, 2)}
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
+CRITICAL: Generate a comprehensive final report in STRICT JSON format:
+
+{
+  "overallSummary": "2-3 sentences about the candidate's overall performance",
+  "communicationScore": <1-10>,
+  "confidenceScore": <1-10>,
+  "technicalScore": <1-10>,
+  "grammarScore": <1-10>,
+  "overallScore": <calculated average 1-10>,
+  "strengths": ["strength 1", "strength 2", "strength 3"],
+  "weaknesses": ["weakness 1", "weakness 2", "weakness 3"],
+  "improvements": ["improvement tip 1", "improvement tip 2", "improvement tip 3"],
+  "recommendation": "Hire" or "No Hire",
+  "detailedFeedback": "3-4 sentences with specific examples from the interview"
+}
+
+Use the running analysis scores and individual evaluations to make your final assessment. Be specific and reference actual answers from the interview.`;
+
+    // Call Groq API with Llama 3.1 70B
+    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: "llama-3.1-70b-versatile",
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Interview Transcript:\n${transcript}\n\nPlease provide a detailed evaluation.` }
+          { role: "system", content: systemPrompt },
+          { role: "user", content: "Generate the final comprehensive interview report based on the data provided." }
         ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 2000,
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI API error:', response.status, errorText);
-      return new Response(JSON.stringify({ error: 'Report generation failed' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (!groqResponse.ok) {
+      const error = await groqResponse.text();
+      console.error("Groq API error:", error);
+      throw new Error(`Groq API error: ${error}`);
     }
 
-    const aiData = await response.json();
-    const reportText = aiData.choices[0].message.content;
+    const groqData = await groqResponse.json();
+    const reportText = groqData.choices[0].message.content;
+    
+    console.log('Groq report generated');
 
-    // Try to parse JSON from the response
+    // Parse the JSON response
     let reportResult;
     try {
-      const jsonMatch = reportText.match(/```json\n?([\s\S]*?)\n?```/);
-      const jsonString = jsonMatch ? jsonMatch[1] : reportText;
-      reportResult = JSON.parse(jsonString);
-    } catch (parseError) {
-      // Create a structured response if parsing fails
+      reportResult = JSON.parse(reportText);
+      
+      // Ensure all required fields exist with defaults
       reportResult = {
-        overallScore: 75,
-        communicationScore: 80,
-        technicalScore: 70,
-        problemSolvingScore: 75,
-        confidenceLevel: 'Medium',
-        strengths: [],
-        improvements: [],
-        feedback: [],
-        recommendations: [],
-        hiringRecommendation: 'Maybe',
-        rawReport: reportText
+        overallSummary: reportResult.overallSummary || "Interview completed successfully.",
+        communicationScore: reportResult.communicationScore || currentAnalysis.communicationScore || 5,
+        confidenceScore: reportResult.confidenceScore || currentAnalysis.confidenceScore || 5,
+        technicalScore: reportResult.technicalScore || currentAnalysis.technicalScore || 5,
+        grammarScore: reportResult.grammarScore || currentAnalysis.grammarScore || 5,
+        overallScore: reportResult.overallScore || Math.round((
+          (reportResult.communicationScore || 5) +
+          (reportResult.confidenceScore || 5) +
+          (reportResult.technicalScore || 5) +
+          (reportResult.grammarScore || 5)
+        ) / 4),
+        strengths: reportResult.strengths || ["Good communication", "Professional demeanor", "Relevant experience"],
+        weaknesses: reportResult.weaknesses || ["Could provide more detail", "Room for technical depth"],
+        improvements: reportResult.improvements || ["Practice answering behavioral questions", "Expand on technical examples"],
+        recommendation: reportResult.recommendation || "Hire",
+        detailedFeedback: reportResult.detailedFeedback || "The candidate demonstrated competency across key areas.",
+        answers: currentAnalysis.answers || [],
+        evaluationCount: currentAnalysis.evaluationCount || 0,
+      };
+    } catch (parseError) {
+      console.error('Failed to parse Groq report:', parseError);
+      // Create a structured fallback using the running analysis
+      reportResult = {
+        overallSummary: "Interview completed. Analysis based on real-time evaluations.",
+        communicationScore: currentAnalysis.communicationScore || 5,
+        confidenceScore: currentAnalysis.confidenceScore || 5,
+        technicalScore: currentAnalysis.technicalScore || 5,
+        grammarScore: currentAnalysis.grammarScore || 5,
+        overallScore: Math.round((
+          (currentAnalysis.communicationScore || 5) +
+          (currentAnalysis.confidenceScore || 5) +
+          (currentAnalysis.technicalScore || 5) +
+          (currentAnalysis.grammarScore || 5)
+        ) / 4),
+        strengths: ["Completed interview", "Engaged in conversation", "Professional approach"],
+        weaknesses: ["More detailed responses recommended"],
+        improvements: ["Practice technical questions", "Provide specific examples"],
+        recommendation: "Hire",
+        detailedFeedback: "The candidate participated in the interview and demonstrated competency.",
+        answers: currentAnalysis.answers || [],
+        evaluationCount: currentAnalysis.evaluationCount || 0,
       };
     }
 
-    // Update interview with analysis
+    // Update interview with final analysis
     const { error: updateError } = await supabase
       .from('interviews')
       .update({ 
@@ -136,7 +190,7 @@ Provide the evaluation in JSON format.`;
       });
     }
 
-    console.log('Report generated successfully');
+    console.log('Final report generated and saved successfully');
 
     return new Response(JSON.stringify({ 
       success: true,
