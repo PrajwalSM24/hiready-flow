@@ -99,7 +99,12 @@ export const useInterview = () => {
 
   const createInterview = useMutation({
     mutationFn: async ({ resumeId }: { resumeId?: string }) => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       const insertData: any = {
+        user_id: user.id,
         transcript: [],
         status: 'in_progress',
       };
