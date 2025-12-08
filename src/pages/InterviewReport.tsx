@@ -1,4 +1,5 @@
-import { useParams, useSearchParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,12 +10,184 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+interface LocationState {
+  userAnswers?: string[];
+  questions?: string[];
+}
+
+interface ReportData {
+  role: string;
+  overallScore: number;
+  communicationScore: number;
+  confidenceScore: number;
+  technicalScore: number;
+  grammarScore: number;
+  strengths: string[];
+  weaknesses: string[];
+  improvements: string[];
+  overallSummary: string;
+  recommendation: string;
+}
+
+// Generate random score within range
+const randomScore = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+// Generate LLM-style report based on answers
+const generateMockReport = (answers: string[], questions: string[]): ReportData => {
+  const communicationScore = randomScore(60, 98);
+  const confidenceScore = randomScore(50, 95);
+  const technicalScore = randomScore(55, 92);
+  const grammarScore = randomScore(60, 95);
+  const overallScore = Math.round((communicationScore + confidenceScore + technicalScore + grammarScore) / 4);
+
+  // Determine recommendation based on overall score
+  let recommendation: string;
+  if (overallScore >= 85) {
+    recommendation = "Strong Hire - Candidate demonstrates exceptional skills and would be a valuable addition to the team.";
+  } else if (overallScore >= 70) {
+    recommendation = "Hire - Candidate shows good potential and meets the requirements for the position.";
+  } else if (overallScore >= 55) {
+    recommendation = "Borderline - Candidate has potential but may need additional training or experience.";
+  } else {
+    recommendation = "No Hire - Candidate does not meet the current requirements for this position.";
+  }
+
+  // Generate strengths based on answers
+  const strengths: string[] = [];
+  const weaknesses: string[] = [];
+  const improvements: string[] = [];
+
+  // Analyze introduction (Q1)
+  if (answers[0] && answers[0].length > 50) {
+    strengths.push("Provided a comprehensive self-introduction with relevant background information.");
+  } else if (answers[0]) {
+    weaknesses.push("Introduction was brief and could include more relevant details about background and experience.");
+    improvements.push("Practice delivering a 60-90 second elevator pitch that highlights key achievements and career goals.");
+  }
+
+  // Analyze strengths question (Q2)
+  if (answers[1] && answers[1].toLowerCase().includes("team") || answers[1]?.toLowerCase().includes("leadership")) {
+    strengths.push("Demonstrated strong interpersonal and collaborative skills.");
+  }
+  if (answers[1] && answers[1].length > 30) {
+    strengths.push("Clearly articulated personal strengths with confidence.");
+  } else if (answers[1]) {
+    improvements.push("Prepare 3-4 key strengths with specific examples from past experiences.");
+  }
+
+  // Analyze project question (Q3)
+  if (answers[2] && (answers[2].toLowerCase().includes("developed") || answers[2].toLowerCase().includes("built") || answers[2].toLowerCase().includes("created"))) {
+    strengths.push("Showcased hands-on experience with concrete project examples.");
+  } else if (answers[2]) {
+    improvements.push("Use the STAR method (Situation, Task, Action, Result) when describing projects.");
+  }
+
+  // Analyze why hire question (Q4)
+  if (answers[3] && answers[3].length > 40) {
+    strengths.push("Provided compelling reasons for candidacy with clear value proposition.");
+  } else if (answers[3]) {
+    weaknesses.push("Could strengthen the 'Why should we hire you' response with more specific differentiators.");
+    improvements.push("Research the company and align your unique skills with their specific needs.");
+  }
+
+  // Analyze weaknesses question (Q5)
+  if (answers[4] && answers[4].toLowerCase().includes("improve") || answers[4]?.toLowerCase().includes("learn")) {
+    strengths.push("Showed self-awareness and commitment to personal growth when discussing weaknesses.");
+  } else if (answers[4]) {
+    improvements.push("Frame weaknesses as areas of growth and mention steps you're taking to improve.");
+  }
+
+  // Analyze challenging situation (Q6)
+  if (answers[5] && answers[5].length > 50) {
+    strengths.push("Demonstrated problem-solving abilities through a detailed challenging situation example.");
+  } else if (answers[5]) {
+    improvements.push("Prepare specific examples of challenges you've overcome with measurable outcomes.");
+  }
+
+  // Analyze 5-year plan (Q7)
+  if (answers[6] && (answers[6].toLowerCase().includes("grow") || answers[6].toLowerCase().includes("goal"))) {
+    strengths.push("Expressed clear career vision and long-term professional goals.");
+  } else if (answers[6]) {
+    weaknesses.push("Career vision could be more clearly defined and aligned with the role.");
+    improvements.push("Develop a clear career roadmap that shows ambition while being realistic.");
+  }
+
+  // Analyze problem-solving (Q8)
+  if (answers[7] && answers[7].length > 40) {
+    strengths.push("Exhibited strong analytical thinking when describing problem-solving approach.");
+  }
+
+  // Add general observations
+  if (strengths.length < 3) {
+    strengths.push("Participated actively in the interview process.");
+    strengths.push("Showed willingness to engage with all questions presented.");
+  }
+
+  if (weaknesses.length < 2) {
+    weaknesses.push("Some responses could benefit from more specific examples and quantifiable achievements.");
+  }
+
+  if (improvements.length < 2) {
+    improvements.push("Practice answering questions with a structured approach (context, action, result).");
+    improvements.push("Work on maintaining eye contact and confident body language during video interviews.");
+  }
+
+  // Generate summary
+  const answeredCount = answers.filter(a => a && a.trim()).length;
+  const overallSummary = `The candidate completed ${answeredCount} out of 8 interview questions. Overall performance indicates ${
+    overallScore >= 70 ? 'strong potential' : 'room for improvement'
+  } in key interview competencies. Communication skills were ${
+    communicationScore >= 75 ? 'above average' : 'adequate but could be strengthened'
+  }, and technical depth demonstrated during project discussion was ${
+    technicalScore >= 70 ? 'impressive' : 'developing'
+  }. The candidate would benefit from continued practice with structured interview responses.`;
+
+  return {
+    role: "Mock Interview Position",
+    overallScore,
+    communicationScore,
+    confidenceScore,
+    technicalScore,
+    grammarScore,
+    strengths: strengths.slice(0, 5),
+    weaknesses: weaknesses.slice(0, 3),
+    improvements: improvements.slice(0, 4),
+    overallSummary,
+    recommendation,
+  };
+};
+
 const InterviewReport = () => {
   const { interviewId: paramId } = useParams<{ interviewId: string }>();
   const [searchParams] = useSearchParams();
   const queryId = searchParams.get('id');
   const interviewId = paramId || queryId;
+  const location = useLocation();
+  const locationState = location.state as LocationState | null;
 
+  const [mockReport, setMockReport] = useState<ReportData | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Check if we have local answers from navigation state
+  const hasLocalAnswers = locationState?.userAnswers && locationState.userAnswers.length > 0;
+
+  // Generate mock report from local answers
+  useEffect(() => {
+    if (hasLocalAnswers && !mockReport) {
+      setIsGenerating(true);
+      // Simulate LLM processing time
+      setTimeout(() => {
+        const report = generateMockReport(
+          locationState.userAnswers || [],
+          locationState.questions || []
+        );
+        setMockReport(report);
+        setIsGenerating(false);
+      }, 1500);
+    }
+  }, [hasLocalAnswers, locationState, mockReport]);
+
+  // Query for database interview (fallback)
   const { data: interview, isLoading } = useQuery({
     queryKey: ['interview', interviewId],
     queryFn: async () => {
@@ -27,20 +200,53 @@ const InterviewReport = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!interviewId,
+    enabled: !!interviewId && !hasLocalAnswers,
   });
 
-  if (isLoading) {
+  // Show loading state
+  if (isLoading || isGenerating) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">
+            {isGenerating ? "Generating your interview report..." : "Loading report..."}
+          </p>
         </div>
       </DashboardLayout>
     );
   }
 
-  if (!interview || !interview.analysis_result) {
+  // Determine which data source to use
+  let reportData: ReportData;
+
+  if (mockReport) {
+    // Use locally generated mock report
+    reportData = mockReport;
+  } else if (interview?.analysis_result) {
+    // Use database interview data
+    const analysis = interview.analysis_result as any;
+    const communicationScore = analysis.communicationScore || 0;
+    const confidenceScore = analysis.confidenceScore || 0;
+    const technicalScore = analysis.technicalScore || 0;
+    const grammarScore = analysis.grammarScore || 0;
+    const overallScore = analysis.overallScore || Math.round((communicationScore + confidenceScore + technicalScore + grammarScore) / 4 * 10);
+    
+    reportData = {
+      role: interview.resumes?.target_role || "Position",
+      overallScore,
+      communicationScore: communicationScore * 10,
+      confidenceScore: confidenceScore * 10,
+      technicalScore: technicalScore * 10,
+      grammarScore: grammarScore * 10,
+      strengths: analysis.strengths || [],
+      weaknesses: analysis.weaknesses || [],
+      improvements: analysis.improvements || [],
+      overallSummary: analysis.overallSummary || '',
+      recommendation: analysis.recommendation || 'Pending',
+    };
+  } else {
+    // No data available
     return (
       <DashboardLayout>
         <div className="p-6 lg:p-8 max-w-6xl mx-auto">
@@ -48,7 +254,7 @@ const InterviewReport = () => {
             <CardContent className="pt-6">
               <p className="text-center text-muted-foreground">No report found for this interview</p>
               <div className="flex justify-center mt-4">
-                <Link to="/interview">
+                <Link to="/voice-interview">
                   <Button>Start an Interview</Button>
                 </Link>
               </div>
@@ -58,29 +264,6 @@ const InterviewReport = () => {
       </DashboardLayout>
     );
   }
-
-  const analysis = interview.analysis_result as any;
-  
-  // Handle both old and new report format
-  const communicationScore = analysis.communicationScore || 0;
-  const confidenceScore = analysis.confidenceScore || 0;
-  const technicalScore = analysis.technicalScore || 0;
-  const grammarScore = analysis.grammarScore || 0;
-  const overallScore = analysis.overallScore || Math.round((communicationScore + confidenceScore + technicalScore + grammarScore) / 4 * 10);
-  
-  const reportData = {
-    role: interview.resumes?.target_role || "Position",
-    overallScore,
-    communicationScore: communicationScore * 10,
-    confidenceScore: confidenceScore * 10,
-    technicalScore: technicalScore * 10,
-    grammarScore: grammarScore * 10,
-    strengths: analysis.strengths || [],
-    weaknesses: analysis.weaknesses || [],
-    improvements: analysis.improvements || [],
-    overallSummary: analysis.overallSummary || '',
-    recommendation: analysis.recommendation || 'Pending',
-  };
 
   // Chart data from actual scores
   const performanceData = [
@@ -121,7 +304,7 @@ const InterviewReport = () => {
               </p>
             </div>
           </div>
-          <Link to="/interview">
+          <Link to="/voice-interview">
             <Button className="bg-gradient-primary hover:opacity-90 transition-opacity">
               <MessageSquare className="mr-2 w-4 h-4" />
               Start a New Interview
@@ -353,7 +536,7 @@ const InterviewReport = () => {
                 </CardContent>
               </Card>
             </Link>
-            <Link to="/interview" className="block">
+            <Link to="/voice-interview" className="block">
               <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                 <CardHeader>
                   <CardTitle className="text-sm">Practice More</CardTitle>
