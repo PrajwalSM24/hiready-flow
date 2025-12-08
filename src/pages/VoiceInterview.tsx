@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,258 +7,185 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Mic, MicOff, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useInterview } from "@/hooks/useInterview";
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
+// Fixed interview questions
+const INTERVIEW_QUESTIONS = [
+  "Hello, welcome to Hiready. Introduce yourself.",
+  "What are your strengths?",
+  "Explain a recent project you worked on.",
+  "Why should we hire you?",
+  "What are your weaknesses?",
+  "Describe a challenging situation you handled.",
+  "Where do you see yourself in the next five years?",
+  "Tell me about a time you solved a difficult problem.",
+];
 
-interface ScoreData {
-  communicationScore: number;
-  confidenceScore: number;
-  technicalScore: number;
-  grammarScore: number;
-}
+const MAX_QUESTIONS = INTERVIEW_QUESTIONS.length;
 
 const VoiceInterview = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const resumeId = searchParams.get('resumeId') || undefined;
   
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [userAnswers, setUserAnswers] = useState<string[]>([]);
+  const [liveCaption, setLiveCaption] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [caption, setCaption] = useState("");
-  const [questionCount, setQuestionCount] = useState(0);
-  const [interviewId, setInterviewId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [scores, setScores] = useState<ScoreData>({
-    communicationScore: 0,
-    confidenceScore: 0,
-    technicalScore: 0,
-    grammarScore: 0,
-  });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showEndButton, setShowEndButton] = useState(false);
   
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const recognitionRef = useRef<any>(null);
 
-  const { 
-    createInterview, 
-    sendMessage, 
-    speechToText, 
-    textToSpeech,
-    generateReport 
-  } = useInterview();
-
-  const MAX_QUESTIONS = 8;
-
-  // Play audio from base64
-  const playAudio = useCallback(async (audioBase64: string): Promise<void> => {
+  // Play pre-recorded question audio
+  const playQuestionAudio = useCallback((index: number): Promise<void> => {
     return new Promise((resolve, reject) => {
-      try {
-        const audio = new Audio(`data:audio/mpeg;base64,${audioBase64}`);
-        audioRef.current = audio;
-        
-        audio.onended = () => {
-          setIsAISpeaking(false);
-          resolve();
-        };
-        
-        audio.onerror = (e) => {
-          setIsAISpeaking(false);
-          reject(e);
-        };
-        
-        setIsAISpeaking(true);
-        audio.play();
-      } catch (error) {
+      const audio = new Audio(`/audio/${index + 1}.mp3`);
+      audioRef.current = audio;
+      
+      setIsAISpeaking(true);
+      
+      audio.onended = () => {
         setIsAISpeaking(false);
-        reject(error);
-      }
+        resolve();
+      };
+      
+      audio.onerror = () => {
+        setIsAISpeaking(false);
+        // If audio file doesn't exist, just resolve after a short delay
+        console.warn(`Audio file /audio/${index + 1}.mp3 not found, continuing without audio`);
+        setTimeout(resolve, 500);
+      };
+      
+      audio.play().catch(() => {
+        setIsAISpeaking(false);
+        console.warn(`Failed to play audio file /audio/${index + 1}.mp3`);
+        setTimeout(resolve, 500);
+      });
     });
   }, []);
 
-  // Start interview and ask first question
-  const initializeInterview = useCallback(async () => {
-    try {
-      setIsInitializing(true);
-      
-      // Create interview session
-      const interview = await createInterview.mutateAsync({ resumeId });
-      if (!interview) throw new Error('Failed to create interview');
-      
-      setInterviewId(interview.id);
-      
-      // Get first question from AI
-      const response = await sendMessage.mutateAsync({
-        messages: [],
-        resumeId,
-        interviewId: interview.id,
-      });
-      
-      const firstQuestion = response.nextQuestion || "Introduce yourself and tell me about your background.";
-      setCaption(firstQuestion);
-      setMessages([{ role: 'assistant', content: firstQuestion }]);
-      setQuestionCount(1);
-      
-      // Convert to speech
-      const ttsResponse = await textToSpeech.mutateAsync({ text: firstQuestion });
-      if (ttsResponse?.audioContent) {
-        await playAudio(ttsResponse.audioContent);
-      }
-      
-      setIsInitializing(false);
-    } catch (error) {
-      console.error('Failed to initialize interview:', error);
-      toast.error('Failed to start interview. Please try again.');
-      setIsInitializing(false);
-    }
-  }, [createInterview, sendMessage, textToSpeech, resumeId, playAudio]);
-
-  useEffect(() => {
-    initializeInterview();
+  // Initialize SpeechRecognition
+  const initSpeechRecognition = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     
-    return () => {
-      // Cleanup audio on unmount
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-      }
-    };
+    if (!SpeechRecognition) {
+      toast.error("Speech recognition is not supported in this browser");
+      return null;
+    }
+    
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    
+    return recognition;
   }, []);
 
-  // Start recording
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      
-      audioChunksRef.current = [];
-      
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-      
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(track => track.stop());
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await processRecording(audioBlob);
-      };
-      
-      mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.start();
-      setIsRecording(true);
-      toast.info("Recording started - speak now");
-    } catch (error) {
-      console.error('Failed to start recording:', error);
-      toast.error('Failed to access microphone');
+  // Ask the current question
+  const askQuestion = useCallback(async (index: number) => {
+    if (index >= MAX_QUESTIONS) {
+      setShowEndButton(true);
+      return;
     }
-  };
-
-  // Stop recording
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  // Process recorded audio
-  const processRecording = async (audioBlob: Blob) => {
-    if (!interviewId) return;
     
     setIsProcessing(true);
-    setCaption("Processing your response...");
+    setLiveCaption("");
     
-    try {
-      // Convert speech to text
-      const sttResponse = await speechToText.mutateAsync(audioBlob);
-      const transcript = sttResponse?.transcript || '';
+    // Play audio first
+    await playQuestionAudio(index);
+    
+    // Then show the question
+    setLiveCaption(INTERVIEW_QUESTIONS[index]);
+    setIsProcessing(false);
+  }, [playQuestionAudio]);
+
+  // Move to next question
+  const askNextQuestion = useCallback(() => {
+    const nextIndex = currentQuestionIndex + 1;
+    
+    if (nextIndex >= MAX_QUESTIONS) {
+      setShowEndButton(true);
+      setLiveCaption("Interview complete! Click 'End Interview' to see your report.");
+    } else {
+      setCurrentQuestionIndex(nextIndex);
+      askQuestion(nextIndex);
+    }
+  }, [currentQuestionIndex, askQuestion]);
+
+  // Start recording with SpeechRecognition
+  const startRecording = useCallback(() => {
+    const recognition = initSpeechRecognition();
+    if (!recognition) return;
+    
+    recognitionRef.current = recognition;
+    let finalTranscript = "";
+    
+    recognition.onresult = (event: any) => {
+      let interimTranscript = "";
       
-      if (!transcript.trim()) {
-        toast.error("Couldn't hear you clearly. Please try again.");
-        setCaption("");
-        setIsProcessing(false);
-        return;
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + " ";
+        } else {
+          interimTranscript += transcript;
+        }
       }
       
-      setCaption(`You said: "${transcript}"`);
-      
-      // Add user message to history
-      const updatedMessages: Message[] = [...messages, { role: 'user', content: transcript }];
-      setMessages(updatedMessages);
-      
-      // Check if we've reached max questions
-      if (questionCount >= MAX_QUESTIONS) {
-        await finishInterview();
-        return;
+      // Update live caption with current speech
+      setLiveCaption(finalTranscript + interimTranscript || "Listening...");
+    };
+    
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      if (event.error !== 'no-speech') {
+        toast.error(`Speech recognition error: ${event.error}`);
       }
-      
-      // Get next question from AI
-      const chatResponse = await sendMessage.mutateAsync({
-        messages: updatedMessages,
-        resumeId,
-        interviewId,
-      });
-      
-      const nextQuestion = chatResponse?.nextQuestion || '';
-      const reportUpdate = chatResponse?.reportUpdate;
-      
-      // Update scores if available
-      if (reportUpdate) {
-        setScores({
-          communicationScore: reportUpdate.communicationScore || scores.communicationScore,
-          confidenceScore: reportUpdate.confidenceScore || scores.confidenceScore,
-          technicalScore: reportUpdate.technicalScore || scores.technicalScore,
-          grammarScore: reportUpdate.grammarScore || scores.grammarScore,
+    };
+    
+    recognition.onend = () => {
+      // Recognition ended, save answer if we have one
+      if (finalTranscript.trim() && isRecording) {
+        setUserAnswers(prev => {
+          const newAnswers = [...prev];
+          newAnswers[currentQuestionIndex] = finalTranscript.trim();
+          return newAnswers;
         });
       }
-      
-      // Add assistant message
-      setMessages([...updatedMessages, { role: 'assistant', content: nextQuestion }]);
-      setCaption(nextQuestion);
-      setQuestionCount(prev => prev + 1);
-      
-      // Convert to speech
-      const ttsResponse = await textToSpeech.mutateAsync({ text: nextQuestion });
-      if (ttsResponse?.audioContent) {
-        await playAudio(ttsResponse.audioContent);
-      }
-      
-      setIsProcessing(false);
-    } catch (error) {
-      console.error('Error processing recording:', error);
-      toast.error('Failed to process your response');
-      setCaption("");
-      setIsProcessing(false);
-    }
-  };
-
-  // Finish interview and generate report
-  const finishInterview = async () => {
-    if (!interviewId) return;
+    };
     
-    setIsProcessing(true);
-    setCaption("Generating your interview report...");
-    
-    try {
-      await generateReport.mutateAsync(interviewId);
-      toast.success("Interview completed!");
-      navigate(`/interview-report?id=${interviewId}`);
-    } catch (error) {
-      console.error('Error finishing interview:', error);
-      toast.error('Failed to generate report');
-      setIsProcessing(false);
-    }
-  };
+    recognition.start();
+    setIsRecording(true);
+    toast.info("Recording started - speak now");
+  }, [initSpeechRecognition, currentQuestionIndex, isRecording]);
 
+  // Stop recording
+  const stopRecording = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsRecording(false);
+    
+    // Save the current caption as the answer
+    const currentAnswer = liveCaption.trim();
+    if (currentAnswer && currentAnswer !== "Listening..." && !INTERVIEW_QUESTIONS.includes(currentAnswer)) {
+      setUserAnswers(prev => {
+        const newAnswers = [...prev];
+        newAnswers[currentQuestionIndex] = currentAnswer;
+        return newAnswers;
+      });
+      
+      // Move to next question after a brief delay
+      setTimeout(() => {
+        askNextQuestion();
+      }, 500);
+    } else {
+      toast.error("Couldn't hear you clearly. Please try again.");
+    }
+  }, [liveCaption, currentQuestionIndex, askNextQuestion]);
+
+  // Toggle recording
   const toggleRecording = () => {
     if (isRecording) {
       stopRecording();
@@ -267,15 +194,51 @@ const VoiceInterview = () => {
     }
   };
 
-  const handleEndInterview = async () => {
-    if (interviewId && questionCount > 1) {
-      await finishInterview();
-    } else {
-      navigate("/dashboard");
+  // End interview and navigate to report
+  const handleEndInterview = useCallback(() => {
+    // Stop any ongoing recording
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
     }
-  };
+    setIsRecording(false);
+    
+    // Stop any playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    
+    // Navigate to report with collected answers
+    navigate("/interview-report", { 
+      state: { 
+        userAnswers,
+        questions: INTERVIEW_QUESTIONS 
+      } 
+    });
+  }, [navigate, userAnswers]);
 
-  const progress = (questionCount / MAX_QUESTIONS) * 100;
+  // Initialize interview on mount
+  useEffect(() => {
+    const startInterview = async () => {
+      setIsInitializing(true);
+      await askQuestion(0);
+      setIsInitializing(false);
+    };
+    
+    startInterview();
+    
+    return () => {
+      // Cleanup on unmount
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  const progress = ((currentQuestionIndex + 1) / MAX_QUESTIONS) * 100;
+  const questionNumber = Math.min(currentQuestionIndex + 1, MAX_QUESTIONS);
 
   return (
     <DashboardLayout>
@@ -291,7 +254,7 @@ const VoiceInterview = () => {
                 <h2 className="text-lg font-semibold text-foreground">AI Interview Session</h2>
                 <Badge variant="outline" className="text-xs">
                   <div className="w-2 h-2 rounded-full bg-success mr-1.5 animate-pulse" />
-                  Question {questionCount} of {MAX_QUESTIONS}
+                  Question {questionNumber} of {MAX_QUESTIONS}
                 </Badge>
               </div>
             </div>
@@ -303,35 +266,13 @@ const VoiceInterview = () => {
               disabled={isProcessing}
             >
               <X className="w-4 h-4 mr-1" />
-              {questionCount > 1 ? 'End Interview' : 'Leave'}
+              {userAnswers.length > 0 ? 'End Interview' : 'Leave'}
             </Button>
           </div>
         </div>
 
         {/* Main Interview Area */}
         <div className="max-w-5xl mx-auto px-6 py-8">
-          {/* Score Dashboard */}
-          {questionCount > 1 && (
-            <div className="grid grid-cols-4 gap-4 mb-6">
-              <Card className="p-4 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Communication</p>
-                <p className="text-2xl font-bold text-primary">{scores.communicationScore}/10</p>
-              </Card>
-              <Card className="p-4 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Confidence</p>
-                <p className="text-2xl font-bold text-primary">{scores.confidenceScore}/10</p>
-              </Card>
-              <Card className="p-4 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Technical</p>
-                <p className="text-2xl font-bold text-primary">{scores.technicalScore}/10</p>
-              </Card>
-              <Card className="p-4 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Grammar</p>
-                <p className="text-2xl font-bold text-primary">{scores.grammarScore}/10</p>
-              </Card>
-            </div>
-          )}
-
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             {/* AI Interviewer Card */}
             <Card className="relative overflow-hidden border-2 border-border bg-card/50 backdrop-blur">
@@ -392,11 +333,11 @@ const VoiceInterview = () => {
           </div>
 
           {/* Caption Box */}
-          {caption && (
+          {liveCaption && (
             <Card className="mb-6 p-6 border-2 border-primary/20 bg-primary/5">
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full bg-primary mt-2 animate-pulse" />
-                <p className="text-base text-foreground flex-1">{caption}</p>
+                <p className="text-base text-foreground flex-1">{liveCaption}</p>
               </div>
             </Card>
           )}
@@ -427,7 +368,7 @@ const VoiceInterview = () => {
                 className="text-destructive hover:text-destructive"
                 disabled={isProcessing}
               >
-                {questionCount > 1 ? 'End & Get Report' : 'Cancel Interview'}
+                {showEndButton || userAnswers.length > 0 ? 'End & Get Report' : 'Cancel Interview'}
               </Button>
             </div>
             {!isRecording && !isAISpeaking && !isProcessing && !isInitializing && (
@@ -446,7 +387,7 @@ const VoiceInterview = () => {
           <div className="mt-8">
             <div className="flex justify-between text-sm text-muted-foreground mb-2">
               <span>Progress</span>
-              <span>{questionCount}/{MAX_QUESTIONS} questions</span>
+              <span>{questionNumber}/{MAX_QUESTIONS} questions</span>
             </div>
             <Progress value={progress} className="h-2" />
           </div>
