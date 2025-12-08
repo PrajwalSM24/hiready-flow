@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Mic, MicOff, X, Loader2 } from "lucide-react";
+import { Mic, MicOff, X, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 // Fixed interview questions
@@ -99,6 +99,12 @@ const VoiceInterview = () => {
     setLiveCaption(INTERVIEW_QUESTIONS[index]);
     setIsProcessing(false);
   }, [playQuestionAudio]);
+
+  // Repeat current question
+  const repeatQuestion = useCallback(async () => {
+    if (isRecording || isAISpeaking || isProcessing) return;
+    await askQuestion(currentQuestionIndex);
+  }, [currentQuestionIndex, isRecording, isAISpeaking, isProcessing, askQuestion]);
 
   // Move to next question
   const askNextQuestion = useCallback(() => {
@@ -361,6 +367,15 @@ const VoiceInterview = () => {
               )}
             </Button>
             <div className="flex gap-2 items-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={repeatQuestion}
+                disabled={isRecording || isAISpeaking || isProcessing || isInitializing}
+              >
+                <RotateCcw className="w-4 h-4 mr-1" />
+                Repeat Question
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
